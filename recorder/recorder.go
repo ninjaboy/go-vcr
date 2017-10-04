@@ -46,6 +46,7 @@ const (
 	ModeRecording Mode = iota
 	ModeReplaying
 	ModeDisabled
+	ModeReplayingIfFailure
 )
 
 // Recorder represents a type used to record and replay
@@ -96,18 +97,39 @@ func requestHandler(r *http.Request, c *cassette.Cassette, mode Mode, realTransp
 		r.Body = ioutil.NopCloser(io.TeeReader(r.Body, reqBody))
 	}
 
-	// Perform client request to it's original
-	// destination and record interactions
 	resp, err := realTransport.RoundTrip(r)
-	if err != nil {
-		return nil, err
+	var respBody []byte
+	if err == nil {
+		respBody, err = ioutil.ReadAll(resp.Body)
 	}
 
-	respBody, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
+	if mode == ModeRecording {
+		if err != nil {
+			return nil, err
+		}
+	}
+	if mode == ModeReplayingIfFailure {
+		if err != nil || resp.StatusCode != http.StatusOK {
+			i, err := c.GetInteraction(r)
+			if err == nil {
+				return i, nil
+			}
+			interaction := createInteraction(reqBody, r, copiedReq, respBody, resp)
+			// don't save as this is an error case without cached option. just return
+			return interaction, nil
+		}
 	}
 
+	if mode != ModeRecording && mode != ModeReplayingIfFailure {
+		panic("Unknown mode. Unexpected case. Kill all the humans.")
+	}
+
+	interaction := createInteraction(reqBody, r, copiedReq, respBody, resp)
+	c.AddInteraction(interaction)
+	return interaction, nil
+}
+
+func createInteraction(reqBody *bytes.Buffer, r *http.Request, copiedReq *http.Request, respBody []byte, resp *http.Response) *cassette.Interaction {
 	// Add interaction to cassette
 	interaction := &cassette.Interaction{
 		Request: cassette.Request{
@@ -124,9 +146,7 @@ func requestHandler(r *http.Request, c *cassette.Cassette, mode Mode, realTransp
 			Code:    resp.StatusCode,
 		},
 	}
-	c.AddInteraction(interaction)
-
-	return interaction, nil
+	return interaction
 }
 
 // New creates a new recorder
@@ -138,9 +158,10 @@ func New(cassetteName string) (*Recorder, error) {
 // NewAsMode creates a new recorder in the specified mode
 func NewAsMode(cassetteName string, mode Mode, realTransport http.RoundTripper) (*Recorder, error) {
 	var c *cassette.Cassette
-	cassetteFile := fmt.Sprintf("%s.yaml", cassetteName)
 
 	if mode != ModeDisabled {
+		cassetteFile := fmt.Sprintf("%s.yaml", cassetteName)
+
 		// Depending on whether the cassette file exists or not we
 		// either create a new empty cassette or load from file
 		if _, err := os.Stat(cassetteFile); os.IsNotExist(err) || mode == ModeRecording {
@@ -153,7 +174,9 @@ func NewAsMode(cassetteName string, mode Mode, realTransport http.RoundTripper) 
 			if err != nil {
 				return nil, err
 			}
-			mode = ModeReplaying
+			if mode != ModeReplayingIfFailure {
+				mode = ModeReplaying
+			}
 		}
 	}
 
@@ -172,12 +195,11 @@ func NewAsMode(cassetteName string, mode Mode, realTransport http.RoundTripper) 
 
 // Stop is used to stop the recorder and save any recorded interactions
 func (r *Recorder) Stop() error {
-	if r.mode == ModeRecording {
+	if r.mode == ModeRecording || r.mode == ModeReplayingIfFailure {
 		if err := r.cassette.Save(); err != nil {
 			return err
 		}
 	}
-
 	return nil
 }
 
