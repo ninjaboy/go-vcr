@@ -114,9 +114,12 @@ func requestHandler(r *http.Request, c *cassette.Cassette, mode Mode, realTransp
 			if err == nil {
 				return i, nil
 			}
-			interaction := createInteraction(reqBody, r, copiedReq, respBody, resp)
-			// don't save as this is an error case without cached option. just return
-			return interaction, nil
+			if resp != nil {
+				interaction := createInteraction(reqBody, r, copiedReq, respBody, resp)
+				// don't save as this is an error case without cached option. just return
+				return interaction, nil
+			}
+			return nil, err
 		}
 	}
 
