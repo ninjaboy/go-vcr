@@ -108,27 +108,28 @@ func requestHandler(r *http.Request, c *cassette.Cassette, mode Mode, realTransp
 			return nil, err
 		}
 	}
-	if mode == ModeReplayingIfFailure {
-		if err != nil || resp.StatusCode != http.StatusOK {
-			i, err := c.GetInteraction(r)
-			if err == nil {
-				return i, nil
+
+	if mode == ModeReplayingIfFailure { //if replaying on top of failure
+		if err != nil || resp.StatusCode != http.StatusOK { //and there was a failure with original call
+			i, err := c.GetInteraction(r) //try get from cache
+			if err == nil {               //if got from cache
+				return i, nil //return cached response
 			}
-			if resp != nil {
-				interaction := createInteraction(reqBody, r, copiedReq, respBody, resp)
-				// don't save as this is an error case without cached option. just return
-				return interaction, nil
+			if resp != nil { //there was no cached response, so we see if the original was good enough (contained 404 error for example)
+				interaction := createInteraction(reqBody, r, copiedReq, respBody, resp) //produce sort of fake interaction
+				// but don't save as this is an error case without cached option. just return
+				return interaction, nil //return fake interaction
 			}
-			return nil, err
+			return nil, err //otherwise return http error (like network error), nothing is saved
 		}
 	}
 
 	if mode != ModeRecording && mode != ModeReplayingIfFailure {
 		panic("Unknown mode. Unexpected case. Kill all the humans.")
 	}
-
-	interaction := createInteraction(reqBody, r, copiedReq, respBody, resp)
-	c.AddInteraction(interaction)
+	//for ModeRecording and ModeReplayingIfFailure (we are here only if there was no error)
+	interaction := createInteraction(reqBody, r, copiedReq, respBody, resp) //create interaction from request response
+	c.AddInteraction(interaction)                                           //save interaction (saves to the cassette for next usage)
 	return interaction, nil
 }
 
