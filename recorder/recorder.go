@@ -108,15 +108,15 @@ func requestHandler(r *http.Request, c *cassette.Cassette, mode Mode, realTransp
 			return nil, err
 		}
 	}
+
 	if mode == ModeReplayingIfFailure {
 		if err != nil || resp.StatusCode != http.StatusOK {
 			i, err := c.GetInteraction(r)
-			if err == nil {
-				return i, nil
+			if err != nil {
+				return nil, err
 			}
-			interaction := createInteraction(reqBody, r, copiedReq, respBody, resp)
-			// don't save as this is an error case without cached option. just return
-			return interaction, nil
+
+			return i, nil
 		}
 	}
 
