@@ -89,7 +89,7 @@ type Response struct {
 type Interaction struct {
 	Request  `yaml:"request"`
 	Response `yaml:"response"`
-	when     time.Time `yaml:"when"`
+	When     time.Time `yaml:"when"`
 }
 
 // Matcher function returns true when the actual request matches

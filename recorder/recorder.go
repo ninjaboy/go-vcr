@@ -138,7 +138,7 @@ func requestHandler(r *http.Request, c *cassette.Cassette, mode Mode, realTransp
 func createInteraction(reqBody *bytes.Buffer, r *http.Request, copiedReq *http.Request, respBody []byte, resp *http.Response) *cassette.Interaction {
 	// Add interaction to cassette
 	interaction := &cassette.Interaction{
-		when: time.Now(),
+		When: time.Now(),
 		Request: cassette.Request{
 			Body:    reqBody.String(),
 			Form:    copiedReq.PostForm,
