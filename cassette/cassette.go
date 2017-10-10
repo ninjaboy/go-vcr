@@ -33,6 +33,7 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
+	"time"
 
 	"gopkg.in/yaml.v2"
 )
@@ -88,6 +89,7 @@ type Response struct {
 type Interaction struct {
 	Request  `yaml:"request"`
 	Response `yaml:"response"`
+	when     time.Time `yaml:"when"`
 }
 
 // Matcher function returns true when the actual request matches

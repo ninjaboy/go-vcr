@@ -34,6 +34,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"os"
+	"time"
 
 	"github.com/ninjaboy/go-vcr/cassette"
 )
@@ -112,7 +113,8 @@ func requestHandler(r *http.Request, c *cassette.Cassette, mode Mode, realTransp
 	if mode == ModeReplayingIfFailure { //if replaying on top of failure
 		if err != nil || resp.StatusCode != http.StatusOK { //and there was a failure with original call
 			i, err := c.GetInteraction(r) //try get from cache
-			if err == nil {               //if got from cache
+
+			if err == nil { //if got from cache
 				return i, nil //return cached response
 			}
 			if resp != nil { //there was no cached response, so we see if the original was good enough (contained 404 error for example)
@@ -136,6 +138,7 @@ func requestHandler(r *http.Request, c *cassette.Cassette, mode Mode, realTransp
 func createInteraction(reqBody *bytes.Buffer, r *http.Request, copiedReq *http.Request, respBody []byte, resp *http.Response) *cassette.Interaction {
 	// Add interaction to cassette
 	interaction := &cassette.Interaction{
+		when: time.Now(),
 		Request: cassette.Request{
 			Body:    reqBody.String(),
 			Form:    copiedReq.PostForm,
