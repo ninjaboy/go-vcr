@@ -1,4 +1,5 @@
 // Copyright (c) 2015 Marin Atanasov Nikolov <dnaeon@gmail.com>
+// Copyright (c) 2017 Alexey Stolybko<alexey.stolybko@gmail.com>
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -21,7 +22,6 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 // THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
 package cassette
 
 import (
@@ -35,7 +35,7 @@ import (
 	"sync"
 	"time"
 
-	"gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // Cassette format versions
@@ -97,10 +97,16 @@ type Interaction struct {
 // own criteria.
 type Matcher func(*http.Request, Request) bool
 
-// Default Matcher is used when a custom matcher is not defined
+// DefaultMatcher is used when a custom matcher is not defined
 // and compares only the method and URL.
 func DefaultMatcher(r *http.Request, i Request) bool {
 	return r.Method == i.Method && r.URL.String() == i.URL
+}
+
+type Marker func(*Interaction)
+
+func DefaultMarker(i *Interaction) {
+	i.Response.Headers.Set("Cached-Response", i.When.Format(time.RFC3339Nano))
 }
 
 // Cassette type
@@ -120,6 +126,9 @@ type Cassette struct {
 
 	// Matches actual request with interaction requests.
 	Matcher Matcher `yaml:"-"`
+
+	// Marks response with custom details if response is acquired from cache
+	Marker Marker `yaml:"-"`
 }
 
 // New creates a new empty cassette
@@ -130,6 +139,7 @@ func New(name string) *Cassette {
 		Version:      cassetteFormatV1,
 		Interactions: make([]*Interaction, 0),
 		Matcher:      DefaultMatcher,
+		Marker:       DefaultMarker,
 	}
 
 	return c
@@ -161,6 +171,7 @@ func (c *Cassette) GetInteraction(r *http.Request) (*Interaction, error) {
 	defer c.RUnlock()
 	for _, i := range c.Interactions {
 		if c.Matcher(r, i.Request) {
+			c.Marker(i) //mark response with some attribute (by default add header "Cached-Response" with data timestamp)
 			return i, nil
 		}
 	}

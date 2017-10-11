@@ -1,5 +1,7 @@
-// Copyright (c) 2015-2016 Marin Atanasov Nikolov <dnaeon@gmail.com>
+// Copyright (c) 2015 Marin Atanasov Nikolov <dnaeon@gmail.com>
 // Copyright (c) 2016 David Jack <davars@gmail.com>
+// Copyright (c) 2017 Alexey Stolybko<alexey.stolybko@gmail.com>
+
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -115,6 +117,7 @@ func requestHandler(r *http.Request, c *cassette.Cassette, mode Mode, realTransp
 			i, err := c.GetInteraction(r) //try get from cache
 
 			if err == nil { //if got from cache
+
 				return i, nil //return cached response
 			}
 			if resp != nil { //there was no cached response, so we see if the original was good enough (contained 404 error for example)
@@ -225,7 +228,11 @@ func (r *Recorder) RoundTrip(req *http.Request) (*http.Response, error) {
 
 	buf := bytes.NewBuffer([]byte(interaction.Response.Body))
 
-	return &http.Response{
+	fmt.Println("----------- interaction headers ---------------")
+	for k, v := range interaction.Response.Headers {
+		fmt.Println(k, " : ", v)
+	}
+	resp := &http.Response{
 		Status:        interaction.Response.Status,
 		StatusCode:    interaction.Response.Code,
 		Proto:         "HTTP/1.0",
@@ -236,7 +243,13 @@ func (r *Recorder) RoundTrip(req *http.Request) (*http.Response, error) {
 		Close:         true,
 		ContentLength: int64(buf.Len()),
 		Body:          ioutil.NopCloser(buf),
-	}, nil
+	}
+	fmt.Println("----------- response headers ---------------")
+	for k, v := range resp.Header {
+		fmt.Println(k, " : ", v)
+	}
+
+	return resp, nil
 }
 
 // CancelRequest implements the github.com/coreos/etcd/client.CancelableTransport interface
@@ -248,5 +261,13 @@ func (r *Recorder) CancelRequest(req *http.Request) {
 func (r *Recorder) SetMatcher(matcher cassette.Matcher) {
 	if r.cassette != nil {
 		r.cassette.Matcher = matcher
+	}
+}
+
+//SetCacheResponseMarker sets a function to mark a response when it is returned from cache instead of origin
+// e.g. to setup custom header
+func (r *Recorder) SetCacheResponseMarker(marker cassette.Marker) {
+	if r.cassette != nil {
+		r.cassette.Marker = marker
 	}
 }

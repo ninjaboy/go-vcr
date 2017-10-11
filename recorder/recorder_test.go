@@ -1,6 +1,6 @@
-// Copyright (c) 2015-2016 Marin Atanasov Nikolov <dnaeon@gmail.com>
+// Copyright (c) 2015 Marin Atanasov Nikolov <dnaeon@gmail.com>
 // Copyright (c) 2016 David Jack <davars@gmail.com>
-// All rights reserved.
+// Copyright (c) 2017 Alexey Stolybko<alexey.stolybko@gmail.com>
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions
@@ -39,8 +39,9 @@ import (
 	"time"
 
 	"bytes"
-	"github.com/dnaeon/go-vcr/cassette"
-	"github.com/dnaeon/go-vcr/recorder"
+
+	"github.com/ninjaboy/go-vcr/cassette"
+	"github.com/ninjaboy/go-vcr/recorder"
 )
 
 type recordTest struct {
